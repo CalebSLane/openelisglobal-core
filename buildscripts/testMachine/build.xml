@@ -115,8 +115,6 @@
 
         <pathelement location="${projectroot}/WebContent/WEB-INF/lib/struts2-spring-plugin-2.0.6.jar"/>
 
-        <pathelement location="${projectroot}/WebContent/WEB-INF/lib/xerces.jar"/>
-
         <pathelement location="${projectroot}/WebContent/WEB-INF/lib/commons-fileupload-1.2.1.jar"/>
 
         <pathelement location="${projectroot}/WebContent/WEB-INF/lib/jbcrypt-0.4.jar"/>
@@ -137,24 +135,11 @@
 
         <pathelement location="${projectroot}/WebContent/WEB-INF/lib/commons-io-2.4.jar"/>
 
-        <pathelement location="${projectroot}/WebContent/WEB-INF/lib/hapi-base-2.1.jar"/>
+        <pathelement location="${projectroot}/WebContent/WEB-INF/lib/hapi-base-2.3.jar"/>
 
+        <pathelement location="${projectroot}/WebContent/WEB-INF/lib/hapi-hl7overhttp-2.3.jar"/>
 
-        <pathelement location="${projectroot}/WebContent/WEB-INF/lib/hapi-hl7overhttp-2.1-patched.jar"/>
-
-        <pathelement location="${projectroot}/WebContent/WEB-INF/lib/hapi-structures-v21-2.1.jar"/>
-
-        <pathelement location="${projectroot}/WebContent/WEB-INF/lib/hapi-structures-v22-2.1.jar"/>
-
-        <pathelement location="${projectroot}/WebContent/WEB-INF/lib/hapi-structures-v23-2.1.jar"/>
-
-        <pathelement location="${projectroot}/WebContent/WEB-INF/lib/hapi-structures-v231-2.1.jar"/>
-
-        <pathelement location="${projectroot}/WebContent/WEB-INF/lib/hapi-structures-v24-2.1.jar"/>
-
-        <pathelement location="${projectroot}/WebContent/WEB-INF/lib/hapi-structures-v25-2.1.jar"/>
-
-        <pathelement location="${projectroot}/WebContent/WEB-INF/lib/hapi-structures-v251-2.1.jar"/>
+        <pathelement location="${projectroot}/WebContent/WEB-INF/lib/hapi-structures-v251-2.3.jar"/>
 
         <pathelement location="${projectroot}/WebContent/WEB-INF/lib/httpclient-4.2.5.jar"/>
 

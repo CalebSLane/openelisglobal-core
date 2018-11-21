@@ -54,6 +54,8 @@ TOMCAT_BASE = '/usr/share/tomcat'
 TOMCAT_VERSION = ''
 TOMCAT_INSTALL_DIR = '/usr/share/'
 NO_PROMPT = False
+TOMCAT_INSTALLED_AS_SERVICE = False
+TOMCAT_AUTO_DEPLOY = True
 
 # note There is a fair amount of copying files, it should be re-written using shutil
 def install_crosstab():
@@ -93,7 +95,7 @@ def check_preconditions():
     global TOMCAT_DIR
     global POSTGRES_LIB_DIR
 
-    log("Checking for Tomcat 5.5 or later installation", PRINT_TO_CONSOLE)
+    log("Checking for Tomcat 7.0 or later installation", PRINT_TO_CONSOLE)
     TOMCAT_DIR = get_tomcat_directory()
     TOMCAT_VERSION = TOMCAT_DIR.strip(TOMCAT_INSTALL_DIR)
     log("Tomcat found version = " + TOMCAT_VERSION, PRINT_TO_CONSOLE)
@@ -116,11 +118,6 @@ def check_preconditions():
             os.system(set_java_path)
             os.system(set_key_path)
 
-    if TOMCAT_VERSION == "tomcat5.5":
-        update_script = "./configTomcat.sh "
-        os.system("chmod +x " + update_script)
-        os.system(update_script + " > /dev/null ")
-
     return True
 
 
@@ -136,27 +133,41 @@ def get_tomcat_directory():
         split_version = version.split('.')
         major = int(split_version[0])
         minor = int(split_version[1])
-        # check for version 5.5 or greater
-        if major == 5 and minor >= 5:
+        # check for version 7.0 or greater
+        if major == 8 and minor == 0:
             log("Found " + names[0], PRINT_TO_CONSOLE)
+            log("Deprecation waning: Tomcat version 8.0 is EoL", PRINT_TO_CONSOLE)
             return names[0]
-        elif major > 5:
+        elif major >= 7 :
             log("Found " + names[0], PRINT_TO_CONSOLE)
             return names[0]
         else:
-            log("Tomcat must be version 5.5 or later\n", PRINT_TO_CONSOLE)
+            log("Found " + names[0], PRINT_TO_CONSOLE)
+            log("Tomcat must be version 7.0 or later\n", PRINT_TO_CONSOLE)
             return None
     names = glob.glob(TOMCAT_BASE + '[0-9]')
     if names:
         version = names[0].strip(TOMCAT_BASE)
         major = int(version)
-        if major > 5:
+        if major >= 7:
             log("Found " + names[0], PRINT_TO_CONSOLE)
             return names[0]
         else:
-            log("Tomcat must be version 5.5 or later\n", PRINT_TO_CONSOLE)
+            log("Found " + names[0], PRINT_TO_CONSOLE)
+            log("Tomcat must be version 7.0 or later\n", PRINT_TO_CONSOLE)
             return None
     return None
+    
+def get_tomcat_install_info():
+    global TOMCAT_INSTALLED_AS_SERVICE
+    global TOMCAT_AUTO_DEPLOY
+    if os.path.isfile(TOMCAT_DIR + '/installInfo'):
+        with open(TOMCAT_DIR + '/installInfo', 'r') as info_file:
+            for line in info_file:
+                if line.contains('init.d'):
+                    TOMCAT_INSTALLED_AS_SERVICE = 'true' in str.lower(line)
+                if line.contains('autoDeploy'):
+                    TOMCAT_AUTO_DEPLOY = 'true' in str.lower(line)
 
 
 def config_files_for_postgres():
@@ -512,37 +523,47 @@ def install():
 
 def stop_tomcat():
     try_count = 1
-    if TOMCAT_VERSION != 'tomcat5.5':
+    if TOMCAT_INSTALLED_AS_SERVICE:
         log('/etc/init.d/' + TOMCAT_VERSION + ' stop', PRINT_TO_CONSOLE)
         cmd = '/etc/init.d/' + TOMCAT_VERSION + ' stop'
         os.system(cmd)
     else:
-        cmd = 'invoke-rc.d ' + TOMCAT_VERSION + ' stop &> /dev/null'
-        log('Stopping Tomcat servlet engine', PRINT_TO_CONSOLE)
-        while os.system(cmd) != 0:
-            if try_count > 4:
-                log("Unable to stop tomcat.  Abandoning operation", PRINT_TO_CONSOLE)
-                clean_exit()
-
-            try_count += 1
-            log('Stopping Tomcat servlet engine failed, trying again', PRINT_TO_CONSOLE)
-            time.sleep(3)
+        cmd = 'su -c "' + TOMCAT_DIR + '/bin/shutdown.sh" tomcat'
+        os.system(cmd)
 
 
 def start_tomcat():
-    cmd = '/etc/init.d/' + TOMCAT_VERSION + ' start'
-    os.system(cmd)
+    #TO DO move to init.d script
+    if TOMCAT_INSTALLED_AS_SERVICE:
+        cmd = '/etc/init.d/' + TOMCAT_VERSION + ' start'
+        os.system(cmd)
+    else:
+        cmd = 'su -c "' + TOMCAT_DIR + '/bin/startup.sh" tomcat'
+        os.system(cmd)
 
 
 def restart_tomcat():
-    cmd = '/etc/init.d/' + TOMCAT_VERSION + ' restart'
-    os.system(cmd)
+    #TO DO move to init.d script
+    if TOMCAT_INSTALLED_AS_SERVICE:
+        cmd = '/etc/init.d/' + TOMCAT_VERSION + ' restart'
+        os.system(cmd)
+    else:
+        cmd = 'su -c "' + TOMCAT_DIR + '/bin/shutdown.sh" tomcat'
+        os.system(cmd)
+        time.sleep(5)
+        cmd = 'su -c "' + TOMCAT_DIR + '/bin/startup.sh" tomcat'
+        os.system(cmd)
 
 
 def copy_war_file_to_tomcat():
-    cmd = 'cp ' + WAR_DIR + APP_NAME + '.war ' + TOMCAT_DIR + '/webapps/'
-    log(cmd, PRINT_TO_CONSOLE)
-    os.system(cmd)
+    if TOMCAT_AUTO_DEPLOY:
+        cmd = 'cp ' + WAR_DIR + APP_NAME + '.war ' + TOMCAT_DIR + '/webapps/'
+        log(cmd, PRINT_TO_CONSOLE)
+        os.system(cmd)
+    else:
+        cmd = 'cp ' + WAR_DIR + APP_NAME + '.war ' + TOMCAT_DIR + '/webapps/OpenELIS.war'
+        log(cmd, PRINT_TO_CONSOLE)
+        os.system(cmd)
 
 
 def backup_war_file():
@@ -634,10 +655,7 @@ def do_install():
         postgres_file = glob.glob(BIN_DIR + 'postgresql*3*')
     if major >= 16:
         postgres_file = glob.glob(BIN_DIR + 'postgresql*4*')
-    if TOMCAT_VERSION == "tomcat5.5":
-        cmd = 'cp ' + postgres_file[0] + ' ' + TOMCAT_DIR + '/common/lib/'
-    else:
-        cmd = 'cp ' + postgres_file[0] + ' ' + TOMCAT_DIR + '/lib/'
+    cmd = 'cp ' + postgres_file[0] + ' ' + TOMCAT_DIR + '/lib/'
     os.system(cmd)
 
     copy_tomcat_config_file()
@@ -663,10 +681,7 @@ def create_postgres_password():
 def copy_tomcat_config_file():
     cmd = 'cp ' + STAGING_DIR + APP_NAME + '.xml ' + TOMCAT_DIR + '/conf/Catalina/localhost/'
     os.system(cmd)
-    if TOMCAT_VERSION == "tomcat5.5":
-        cmd = 'chown tomcat55:nogroup ' + TOMCAT_DIR + '/conf/Catalina/localhost/' + APP_NAME + '.xml'
-    else:
-        cmd = 'chown ' + TOMCAT_VERSION + ":" + TOMCAT_VERSION + ' ' + TOMCAT_DIR + '/conf/Catalina/localhost/' + APP_NAME + '.xml'
+    cmd = 'chown tomcat:tomcat ' + TOMCAT_DIR + '/conf/Catalina/localhost/' + APP_NAME + '.xml'
     os.system(cmd)
 
 
@@ -976,11 +991,11 @@ def get_os_tomcat_dir():
     minor = int(split_version[1])
 
     if major < 16:
-        TOMCAT_BASE = "/usr/share/tomcat"
-        TOMCAT_INSTALL_DIR = "/usr/share/"
-    if major >= 16:
         TOMCAT_BASE = "/var/lib/tomcat"
         TOMCAT_INSTALL_DIR = "/var/lib/"
+    if major >= 16:
+        TOMCAT_BASE = "/usr/share/tomcat"
+        TOMCAT_INSTALL_DIR = "/usr/share/"
 # Main entry point
 
 
@@ -996,6 +1011,7 @@ if len(sys.argv) > 1:
     open_log_file()
     write_version()
     get_os_tomcat_dir()
+    get_tomcat_install_info()
 
     arg = sys.argv[1]
 

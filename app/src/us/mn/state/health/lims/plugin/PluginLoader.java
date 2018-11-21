@@ -38,12 +38,13 @@ import org.dom4j.Document;
 import org.dom4j.DocumentException;
 import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
+import org.hibernate.InstantiationException;
 
 import us.mn.state.health.lims.common.exception.LIMSException;
 import us.mn.state.health.lims.common.log.LogEvent;
 
 public class PluginLoader {
-    private static final String PLUGIN_ANALYZER = "plugin" + File.separator;
+    private static final String PLUGIN_ANALYZER = "/plugin" + File.separator;
     private static final String VERSION = "version";
     private static final String SUPPORTED_VERSION = "1.0";
     private static final String PATH = "path";
@@ -242,7 +243,10 @@ public class PluginLoader {
         } catch (IllegalAccessException e) {
             e.printStackTrace();
             throw new LIMSException("See previous stack trace");
-        }
+        } catch (java.lang.InstantiationException e) {
+            e.printStackTrace();
+            throw new LIMSException("See previous stack trace");
+		}
 
     }
     
